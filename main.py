@@ -13,13 +13,14 @@ import seaborn as sns
 from config import MODEL_CONFIGS, MLP_CONFIGS, EPOCHS, SAVE_PATH, MNIST_CLASS_NAMES, DDR_CLASS_NAMES
 from train import train_single_model, train_compare_models
 from test import test_model, visualize_model_features
+from models.cnn_model import get_cnn_model
 from utils.model_visualization import visualize_model_structure
 from utils.visualization import (
     plot_confusion_matrix, plot_learning_curves, plot_model_comparison,
     visualize_feature_maps, visualize_all_conv_layers, visualize_filters,
     visualize_misclassified
 )
-from utils.data_loader import get_dataloader
+from utils.data_loader import get_dataloaders
 
 
 def main():
@@ -101,6 +102,9 @@ def main():
         # 确定类别名称
         class_names = DDR_CLASS_NAMES if args.dataset == 'ddr' else MNIST_CLASS_NAMES
         
+        # 获取数据加载器
+        train_loader, val_loader, test_loader = get_dataloaders(args.dataset)
+        
         # 测试模型
         test_loss, test_acc, all_preds, all_labels, test_losses, test_accs = test_model(
             model_path=model_path,
@@ -159,8 +163,31 @@ def main():
         # 可视化错误分类样本
         print("\n可视化错误分类样本...")
         save_path = os.path.join(args.output_path, f"{args.model_type}_{args.config}_misclassified.png")
-        _, test_loader = get_dataloader(args.dataset)
-        model = torch.load(model_path, map_location=device)
+        
+        # 创建模型实例
+        if args.model_type == 'CNN':
+            model = get_cnn_model(
+                model_type=args.model_type,
+                num_filters=config['num_filters'],
+                num_layers=config['num_layers']
+            )
+        elif args.model_type == 'resnet':
+            model = get_cnn_model(
+                model_type=args.model_type,
+                num_blocks=config['num_blocks']
+            )
+        elif args.model_type == 'mlp':
+            model = get_cnn_model(
+                model_type=args.model_type,
+                hidden_sizes=config['hidden_sizes'],
+                dropout_rate=config['dropout_rate']
+            )
+        
+        # 加载模型状态字典
+        model.load_state_dict(torch.load(model_path, map_location=device))
+        model.to(device)
+        model.eval()
+        
         visualize_misclassified(model, test_loader, device, save_path=save_path)
     
     elif args.action == 'visualize':
@@ -189,7 +216,7 @@ def main():
         model.eval()
         
         # 获取数据加载器
-        _, test_loader = get_dataloader(args.dataset)
+        train_loader, val_loader, test_loader = get_dataloaders(args.dataset)
         
         # 获取一个样本用于可视化
         sample_image, _ = next(iter(test_loader))

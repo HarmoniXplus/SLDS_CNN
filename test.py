@@ -39,6 +39,8 @@ def test_model(model_path, model_type, config, dataset='mnist', class_names=None
         test_acc: 测试准确率
         all_preds: 所有预测结果
         all_labels: 所有真实标签
+        test_losses: 每个批次的测试损失
+        test_accs: 每个批次的测试准确率
     """
     # 获取数据加载器
     _, _, test_loader = get_dataloaders(dataset)
@@ -74,9 +76,9 @@ def test_model(model_path, model_type, config, dataset='mnist', class_names=None
     trainer.load_model(model_path)
     
     # 测试模型
-    test_loss, test_acc, all_preds, all_labels = trainer.test(test_loader)
+    test_loss, test_acc, all_preds, all_labels, test_losses, test_accs = trainer.test(test_loader)
     
-    return test_loss, test_acc, all_preds, all_labels
+    return test_loss, test_acc, all_preds, all_labels, test_losses, test_accs
 
 
 def visualize_model_features(model_path, model_type, config, dataset='mnist'):
@@ -211,7 +213,7 @@ def visualize_mlp_features(features, labels):
 
 if __name__ == "__main__":
     # 测试模型
-    test_loss, test_acc, all_preds, all_labels = test_model(".\checkpoints\simple_simple_best.pth", "CNN", MODEL_CONFIGS['simple'])
+    test_loss, test_acc, all_preds, all_labels, test_losses, test_accs = test_model(".\checkpoints\simple_simple_best.pth", "CNN", MODEL_CONFIGS['simple'])
     
     # 可视化模型特征（如果是CNN模型）
     model_type = 'CNN'  # 默认模型类型，实际应从命令行参数获取

@@ -190,6 +190,8 @@ class Trainer:
             test_acc: 测试准确率
             all_preds: 所有预测结果
             all_labels: 所有真实标签
+            test_losses: 每个批次的测试损失
+            test_accs: 每个批次的测试准确率
         """
         self.model.eval()
         total_loss = 0
@@ -197,6 +199,8 @@ class Trainer:
         total = 0
         all_preds = []
         all_labels = []
+        test_losses = []
+        test_accs = []
         
         with torch.no_grad():
             for inputs, targets in tqdm(test_loader, desc='Testing'):
@@ -215,8 +219,12 @@ class Trainer:
                 # 收集预测结果
                 all_preds.extend(predicted.cpu().numpy())
                 all_labels.extend(targets.cpu().numpy())
+                
+                # 记录每个批次的损失和准确率
+                test_losses.append(loss.item())
+                test_accs.append(predicted.eq(targets).sum().item() / targets.size(0))
         
-        return total_loss / len(test_loader), correct / total, all_preds, all_labels
+        return total_loss / len(test_loader), correct / total, all_preds, all_labels, test_losses, test_accs
     
     def save_model(self, path):
         """保存模型"""
