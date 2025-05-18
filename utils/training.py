@@ -11,6 +11,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from config import SAVE_PATH, FIGURE_PATH
 from torch.optim.lr_scheduler import StepLR
+from torch.cuda.amp import autocast, GradScaler
 
 
 class Trainer:
@@ -34,6 +35,11 @@ class Trainer:
         self.device = device or torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model.to(self.device)
         
+        # 启用 CUDA 优化
+        if torch.cuda.is_available():
+            torch.backends.cudnn.benchmark = True
+            torch.backends.cudnn.deterministic = True
+        
         # 创建优化器
         self.optimizer = optim.SGD(
             model.parameters(),
@@ -48,8 +54,7 @@ class Trainer:
             self.optimizer,
             mode='min',
             factor=0.1,
-            patience=5,
-            verbose=True
+            patience=5
         )
         # self.scheduler = StepLR(self.optimizer, step_size=30, gamma=0.1)
         #可使用StepLR学习率调度器
@@ -61,6 +66,9 @@ class Trainer:
         
         # 创建损失函数
         self.criterion = nn.CrossEntropyLoss()
+        
+        # 创建梯度缩放器（用于混合精度训练）
+        self.scaler = GradScaler() if torch.cuda.is_available() else None
         
         # 训练记录
         self.train_losses = []
@@ -136,22 +144,37 @@ class Trainer:
         total = 0
         
         for inputs, targets in tqdm(train_loader, desc='Training'):
-            inputs, targets = inputs.to(self.device), targets.to(self.device)
+            # 将数据移到GPU
+            inputs = inputs.to(self.device, non_blocking=True)
+            targets = targets.to(self.device, non_blocking=True)
             
-            # 前向传播
-            outputs = self.model(inputs)
-            loss = self.criterion(outputs, targets)
+            # 使用混合精度训练
+            with autocast(enabled=torch.cuda.is_available()):
+                # 前向传播
+                outputs = self.model(inputs)
+                loss = self.criterion(outputs, targets)
             
             # 反向传播和优化
             self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
+            
+            if self.scaler is not None:
+                # 使用梯度缩放器
+                self.scaler.scale(loss).backward()
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+            else:
+                loss.backward()
+                self.optimizer.step()
             
             # 统计
             total_loss += loss.item()
             _, predicted = outputs.max(1)
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
+            
+            # 清理缓存
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         
         return total_loss / len(train_loader), correct / total
     
@@ -164,17 +187,25 @@ class Trainer:
         
         with torch.no_grad():
             for inputs, targets in tqdm(val_loader, desc='Validating'):
-                inputs, targets = inputs.to(self.device), targets.to(self.device)
+                # 将数据移到GPU
+                inputs = inputs.to(self.device, non_blocking=True)
+                targets = targets.to(self.device, non_blocking=True)
                 
-                # 前向传播
-                outputs = self.model(inputs)
-                loss = self.criterion(outputs, targets)
+                # 使用混合精度推理
+                with autocast(enabled=torch.cuda.is_available()):
+                    # 前向传播
+                    outputs = self.model(inputs)
+                    loss = self.criterion(outputs, targets)
                 
                 # 统计
                 total_loss += loss.item()
                 _, predicted = outputs.max(1)
                 total += targets.size(0)
                 correct += predicted.eq(targets).sum().item()
+                
+                # 清理缓存
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
         
         return total_loss / len(val_loader), correct / total
     
@@ -200,11 +231,15 @@ class Trainer:
         
         with torch.no_grad():
             for inputs, targets in tqdm(test_loader, desc='Testing'):
-                inputs, targets = inputs.to(self.device), targets.to(self.device)
+                # 将数据移到GPU
+                inputs = inputs.to(self.device, non_blocking=True)
+                targets = targets.to(self.device, non_blocking=True)
                 
-                # 前向传播
-                outputs = self.model(inputs)
-                loss = self.criterion(outputs, targets)
+                # 使用混合精度推理
+                with autocast(enabled=torch.cuda.is_available()):
+                    # 前向传播
+                    outputs = self.model(inputs)
+                    loss = self.criterion(outputs, targets)
                 
                 # 统计
                 total_loss += loss.item()
@@ -215,6 +250,10 @@ class Trainer:
                 # 收集预测结果
                 all_preds.extend(predicted.cpu().numpy())
                 all_labels.extend(targets.cpu().numpy())
+                
+                # 清理缓存
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
         
         return total_loss / len(test_loader), correct / total, all_preds, all_labels
     

@@ -19,7 +19,7 @@ from utils.visualization import (
     visualize_feature_maps, visualize_all_conv_layers, visualize_filters,
     visualize_misclassified
 )
-from utils.data_loader import get_dataloader
+from utils.data_loader import get_dataloaders
 
 
 def main():

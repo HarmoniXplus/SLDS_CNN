@@ -74,21 +74,30 @@ def get_mnist_dataloaders():
         train_dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
-        num_workers=NUM_WORKERS
+        num_workers=NUM_WORKERS,
+        pin_memory=True,  # 启用内存固定
+        persistent_workers=True,  # 保持工作进程存活
+        prefetch_factor=2  # 预加载因子
     )
     
     val_loader = DataLoader(
         val_dataset,
         batch_size=BATCH_SIZE,
         shuffle=False,
-        num_workers=NUM_WORKERS
+        num_workers=NUM_WORKERS,
+        pin_memory=True,
+        persistent_workers=True,
+        prefetch_factor=2
     )
     
     test_loader = DataLoader(
         test_dataset,
         batch_size=BATCH_SIZE,
         shuffle=False,
-        num_workers=NUM_WORKERS
+        num_workers=NUM_WORKERS,
+        pin_memory=True,
+        persistent_workers=True,
+        prefetch_factor=2
     )
     
     return train_loader, val_loader, test_loader
