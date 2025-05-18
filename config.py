@@ -3,6 +3,7 @@
 包含模型、训练和数据集相关的配置参数
 """
 import os
+import torch
 
 # 路径配置
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -86,4 +87,14 @@ MOMENTUM = 0.9
 WEIGHT_DECAY = 1e-4
 
 # MNIST数据集的类别名称
-CLASS_NAMES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'] 
+CLASS_NAMES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+
+# GPU配置
+USE_AMP = True  # 是否使用混合精度训练
+USE_MULTI_GPU = False  # 是否使用多GPU训练
+CUDNN_BENCHMARK = True  # 是否使用cudnn benchmark
+PIN_MEMORY = True  # 是否使用pin_memory
+
+# 设置cudnn benchmark
+if CUDNN_BENCHMARK:
+    torch.backends.cudnn.benchmark = True 

@@ -9,8 +9,9 @@ import torch.optim as optim
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from config import SAVE_PATH, FIGURE_PATH
+from config import SAVE_PATH, FIGURE_PATH, USE_AMP, USE_MULTI_GPU
 from torch.optim.lr_scheduler import StepLR
+from torch.cuda.amp import autocast, GradScaler
 
 
 class Trainer:
@@ -32,6 +33,14 @@ class Trainer:
         """
         self.model = model
         self.device = device or torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        
+        # 多GPU支持
+        if USE_MULTI_GPU and torch.cuda.device_count() > 1:
+            print(f"使用 {torch.cuda.device_count()} 个GPU训练")
+            self.model = nn.DataParallel(model)
+        else:
+            self.model = model
+            
         self.model.to(self.device)
         
         # 创建优化器
@@ -61,6 +70,9 @@ class Trainer:
         
         # 创建损失函数
         self.criterion = nn.CrossEntropyLoss()
+        
+        # 创建梯度缩放器（用于混合精度训练）
+        self.scaler = GradScaler() if USE_AMP else None
         
         # 训练记录
         self.train_losses = []
@@ -138,14 +150,27 @@ class Trainer:
         for inputs, targets in tqdm(train_loader, desc='Training'):
             inputs, targets = inputs.to(self.device), targets.to(self.device)
             
-            # 前向传播
-            outputs = self.model(inputs)
-            loss = self.criterion(outputs, targets)
-            
-            # 反向传播和优化
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
+            # 使用混合精度训练
+            if USE_AMP:
+                with autocast():
+                    # 前向传播
+                    outputs = self.model(inputs)
+                    loss = self.criterion(outputs, targets)
+                
+                # 反向传播和优化
+                self.optimizer.zero_grad()
+                self.scaler.scale(loss).backward()
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+            else:
+                # 前向传播
+                outputs = self.model(inputs)
+                loss = self.criterion(outputs, targets)
+                
+                # 反向传播和优化
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
             
             # 统计
             total_loss += loss.item()
@@ -166,9 +191,14 @@ class Trainer:
             for inputs, targets in tqdm(val_loader, desc='Validating'):
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
                 
-                # 前向传播
-                outputs = self.model(inputs)
-                loss = self.criterion(outputs, targets)
+                # 使用混合精度验证
+                if USE_AMP:
+                    with autocast():
+                        outputs = self.model(inputs)
+                        loss = self.criterion(outputs, targets)
+                else:
+                    outputs = self.model(inputs)
+                    loss = self.criterion(outputs, targets)
                 
                 # 统计
                 total_loss += loss.item()
@@ -206,9 +236,14 @@ class Trainer:
             for inputs, targets in tqdm(test_loader, desc='Testing'):
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
                 
-                # 前向传播
-                outputs = self.model(inputs)
-                loss = self.criterion(outputs, targets)
+                # 使用混合精度测试
+                if USE_AMP:
+                    with autocast():
+                        outputs = self.model(inputs)
+                        loss = self.criterion(outputs, targets)
+                else:
+                    outputs = self.model(inputs)
+                    loss = self.criterion(outputs, targets)
                 
                 # 统计
                 total_loss += loss.item()

@@ -12,7 +12,7 @@ import numpy as np
 from config import (
     BATCH_SIZE, NUM_WORKERS, VAL_SIZE,
     DATA_PATH, DDR_DATA_PATH, DDR_TRAIN_LABELS,
-    DDR_VAL_LABELS, DDR_TEST_LABELS
+    DDR_VAL_LABELS, DDR_TEST_LABELS, PIN_MEMORY
 )
 
 
@@ -74,21 +74,27 @@ def get_mnist_dataloaders():
         train_dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
-        num_workers=NUM_WORKERS
+        num_workers=NUM_WORKERS,
+        pin_memory=PIN_MEMORY,
+        persistent_workers=True if NUM_WORKERS > 0 else False
     )
     
     val_loader = DataLoader(
         val_dataset,
         batch_size=BATCH_SIZE,
         shuffle=False,
-        num_workers=NUM_WORKERS
+        num_workers=NUM_WORKERS,
+        pin_memory=PIN_MEMORY,
+        persistent_workers=True if NUM_WORKERS > 0 else False
     )
     
     test_loader = DataLoader(
         test_dataset,
         batch_size=BATCH_SIZE,
         shuffle=False,
-        num_workers=NUM_WORKERS
+        num_workers=NUM_WORKERS,
+        pin_memory=PIN_MEMORY,
+        persistent_workers=True if NUM_WORKERS > 0 else False
     )
     
     return train_loader, val_loader, test_loader
