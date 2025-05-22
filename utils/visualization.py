@@ -244,59 +244,51 @@ def visualize_misclassified(model, dataloader, device, num_images=10, save_path=
     可视化错误分类的样本
     
     参数:
-        model: CNN模型
+        model: 模型实例
         dataloader: 数据加载器
-        device: 运行设备
-        num_images: 要显示的错误分类样本数量
+        device: 设备
+        num_images: 要可视化的图像数量
         save_path: 保存路径，如果不提供则显示图表
     """
     model.eval()
-    misclassified = []
+    misclassified_images = []
+    misclassified_labels = []
+    misclassified_preds = []
     
     with torch.no_grad():
         for images, labels in dataloader:
-            images, labels = images.to(device), labels.to(device)
+            images = images.to(device)
+            labels = labels.to(device)
             outputs = model(images)
-            _, predicted = torch.max(outputs, 1)
+            _, predicted = outputs.max(1)
             
-            # 收集错误分类的样本
-            mask = (predicted != labels)
-            misclassified.extend([
-                (images[i].cpu(), labels[i].item(), predicted[i].item())
-                for i in range(len(mask)) if mask[i]
-            ])
+            # 找出错误分类的样本
+            mask = predicted != labels
+            if mask.any():
+                misclassified_images.extend(images[mask].cpu())
+                misclassified_labels.extend(labels[mask].cpu())
+                misclassified_preds.extend(predicted[mask].cpu())
             
-            if len(misclassified) >= num_images:
+            if len(misclassified_images) >= num_images:
                 break
     
-    # 限制显示的样本数量
-    misclassified = misclassified[:num_images]
+    # 限制图像数量
+    misclassified_images = misclassified_images[:num_images]
+    misclassified_labels = misclassified_labels[:num_images]
+    misclassified_preds = misclassified_preds[:num_images]
     
-    # 显示错误分类的样本
-    if misclassified:
-        rows = int(np.ceil(len(misclassified) / 5))
-        cols = min(len(misclassified), 5)
-        
-        plt.figure(figsize=(15, 3 * rows))
-        for i, (image, true_label, pred_label) in enumerate(misclassified):
-            plt.subplot(rows, cols, i + 1)
-            
-            # 处理单通道图像
-            if image.size(0) == 1:
-                plt.imshow(image.squeeze(), cmap='gray')
-            else:
-                plt.imshow(image.permute(1, 2, 0))
-                
-            plt.title(f'True: {CLASS_NAMES[true_label]}\nPred: {CLASS_NAMES[pred_label]}')
-            plt.axis('off')
-        
-        plt.tight_layout()
-        
-        # 保存或显示图表
-        if save_path:
-            plt.savefig(save_path)
-            print(f"Misclassified samples visualization saved to {save_path}")
-        else:
-            plt.show()
+    # 创建图表
+    plt.figure(figsize=(15, 5))
+    for i, (image, true_label, pred_label) in enumerate(zip(misclassified_images, misclassified_labels, misclassified_preds)):
+        plt.subplot(1, num_images, i + 1)
+        plt.imshow(image.squeeze().numpy(), cmap='gray')
+        plt.title(f'真实: {true_label}\n预测: {pred_label}')
+        plt.axis('off')
+    
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path)
+        plt.close()
     else:
-        print("No misclassified samples found!") 
+        plt.show() 

@@ -94,10 +94,17 @@ def main():
         # 确定模型配置
         if args.model_type == 'CNN':
             config = MODEL_CONFIGS[args.config]
+        elif args.model_type == 'resnet':
+            if args.config == 'simple':
+                config = {'num_blocks': [1, 1, 1]}
+            elif args.config == 'medium':
+                config = {'num_blocks': [2, 2, 2]}
+            else:  # complex
+                config = {'num_blocks': [3, 4, 6]}
         elif args.model_type == 'mlp':
             config = MLP_CONFIGS[args.config]
         else:
-            config = None
+            raise ValueError(f"不支持的模型类型: {args.model_type}")
         
         # 确定类别名称
         class_names = DDR_CLASS_NAMES if args.dataset == 'ddr' else MNIST_CLASS_NAMES
@@ -206,13 +213,40 @@ def main():
         # 确定模型配置
         if args.model_type == 'CNN':
             config = MODEL_CONFIGS[args.config]
+        elif args.model_type == 'resnet':
+            if args.config == 'simple':
+                config = {'num_blocks': [1, 1, 1]}
+            elif args.config == 'medium':
+                config = {'num_blocks': [2, 2, 2]}
+            else:  # complex
+                config = {'num_blocks': [3, 4, 6]}
         elif args.model_type == 'mlp':
             config = MLP_CONFIGS[args.config]
         else:
-            config = None
+            raise ValueError(f"不支持的模型类型: {args.model_type}")
         
-        # 加载模型
-        model = torch.load(model_path, map_location=device)
+        # 创建模型实例
+        if args.model_type == 'CNN':
+            model = get_cnn_model(
+                model_type=args.model_type,
+                num_filters=config['num_filters'],
+                num_layers=config['num_layers']
+            )
+        elif args.model_type == 'resnet':
+            model = get_cnn_model(
+                model_type=args.model_type,
+                num_blocks=config['num_blocks']
+            )
+        elif args.model_type == 'mlp':
+            model = get_cnn_model(
+                model_type=args.model_type,
+                hidden_sizes=config['hidden_sizes'],
+                dropout_rate=config['dropout_rate']
+            )
+        
+        # 加载模型状态字典
+        model.load_state_dict(torch.load(model_path, map_location=device))
+        model.to(device)
         model.eval()
         
         # 获取数据加载器
@@ -243,6 +277,13 @@ def main():
         # 确定模型配置
         if args.model_type == 'CNN':
             config = MODEL_CONFIGS[args.config]
+        elif args.model_type == 'resnet':
+            if args.config == 'simple':
+                config = {'num_blocks': [1, 1, 1]}
+            elif args.config == 'medium':
+                config = {'num_blocks': [2, 2, 2]}
+            else:  # complex
+                config = {'num_blocks': [3, 4, 6]}
         elif args.model_type == 'mlp':
             config = MLP_CONFIGS[args.config]
         else:
