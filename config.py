@@ -58,7 +58,7 @@ MODEL_CONFIGS = {
 MLP_CONFIGS = {
     'simple': {
         'hidden_sizes': [128],           # 单隐藏层
-        'dropout_rate': 0.3,
+        'dropout_rate': 0.5,
     },
     'medium': {
         'hidden_sizes': [256, 128],      # 两个隐藏层

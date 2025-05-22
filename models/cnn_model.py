@@ -15,8 +15,10 @@ class SimpleCNN(nn.Module):
         num_classes: 分类类别数量
         num_filters: 初始卷积层过滤器数量
         num_layers: 卷积层数量
+        dropout_rate: Dropout比率
+        use_bn: 是否使用BN层
     """
-    def __init__(self, num_classes=10, num_filters=32, num_layers=2):
+    def __init__(self, num_classes=10, num_filters=16, num_layers=2, dropout_rate=0.0, use_bn=False):
         super().__init__()
         layers = []
         # MNIST是单通道灰度图
@@ -24,9 +26,12 @@ class SimpleCNN(nn.Module):
         # 构建卷积层
         for i in range(num_layers):
             layers.append(nn.Conv2d(in_channels, num_filters, kernel_size=3, padding=1))
-            layers.append(nn.BatchNorm2d(num_filters))  # 添加批归一化
+            if use_bn:
+                layers.append(nn.BatchNorm2d(num_filters))
             layers.append(nn.ReLU())
             layers.append(nn.MaxPool2d(2))
+            if dropout_rate > 0:
+                layers.append(nn.Dropout2d(dropout_rate))
             in_channels = num_filters
             num_filters *= 2
         
@@ -37,13 +42,15 @@ class SimpleCNN(nn.Module):
         feature_size = 28 // (2 ** num_layers)
         fc_input_size = in_channels * feature_size * feature_size
         
-        self.classifier = nn.Sequential(
+        classifier_layers = [
             nn.Flatten(),
             nn.Linear(fc_input_size, 128),
-            nn.ReLU(),
-            nn.Dropout(0.5),  # 添加Dropout减少过拟合
-            nn.Linear(128, num_classes)
-        )
+            nn.ReLU()
+        ]
+        if dropout_rate > 0:
+            classifier_layers.append(nn.Dropout(dropout_rate))
+        classifier_layers.append(nn.Linear(128, num_classes))
+        self.classifier = nn.Sequential(*classifier_layers)
         
     def forward(self, x):
         x = self.features(x)
@@ -159,16 +166,20 @@ class ResNet(nn.Module):
         return x
 
 
-def get_cnn_model(model_type='CNN', **kwargs):
+def get_cnn_model(model_type='CNN', num_filters=32, num_layers=3, dropout_rate=0.0, use_bn=False, **kwargs):
     """
     工厂函数，根据指定类型创建相应的CNN模型
 
     参数:
         model_type: 模型类型 ('CNN', 'resnet', 或 'mlp')
+        num_filters: 卷积核数量（仅CNN）
+        num_layers: 卷积层数（仅CNN）
+        dropout_rate: Dropout比率（仅CNN/MLP）
+        use_bn: 是否使用BN层（仅CNN）
         **kwargs: 传递给模型构造函数的其他参数
     """
     if model_type == 'CNN':
-        return SimpleCNN(**kwargs)
+        return SimpleCNN(num_filters=num_filters, num_layers=num_layers, dropout_rate=dropout_rate, use_bn=use_bn, num_classes=kwargs.get('num_classes', 10))
     elif model_type == 'resnet':
         num_blocks = kwargs.get('num_blocks', [2, 2, 2])
         return ResNet(num_blocks, kwargs.get('num_classes', 10))
