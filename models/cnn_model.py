@@ -102,13 +102,14 @@ class ResidualBlock(nn.Module):
     """
     残差块实现，用于构建更深层次的CNN
     """
-    def __init__(self, in_channels, out_channels, stride=1):
+    def __init__(self, in_channels, out_channels, stride=1, dropout_rate=0.0):
         super().__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(out_channels)
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(out_channels)
+        self.dropout = nn.Dropout2d(dropout_rate) if dropout_rate > 0 else nn.Identity()
         
         # 如果输入输出通道数不匹配，添加1x1卷积进行转换
         self.shortcut = nn.Sequential()
@@ -121,6 +122,7 @@ class ResidualBlock(nn.Module):
     def forward(self, x):
         out = self.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
+        out = self.dropout(out)
         out += self.shortcut(x)
         out = self.relu(out)
         return out
@@ -130,7 +132,7 @@ class ResNet(nn.Module):
     """
     基于残差网络的深层CNN实现
     """
-    def __init__(self, num_blocks, num_classes=10):
+    def __init__(self, num_blocks, num_classes=10, dropout_rate=0.0):
         super().__init__()
         self.in_channels = 16
         
@@ -139,19 +141,20 @@ class ResNet(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         
         # 构建残差网络层
-        self.layer1 = self._make_layer(16, num_blocks[0], stride=1)
-        self.layer2 = self._make_layer(32, num_blocks[1], stride=2)
-        self.layer3 = self._make_layer(64, num_blocks[2], stride=2)
+        self.layer1 = self._make_layer(16, num_blocks[0], stride=1, dropout_rate=dropout_rate)
+        self.layer2 = self._make_layer(32, num_blocks[1], stride=2, dropout_rate=dropout_rate)
+        self.layer3 = self._make_layer(64, num_blocks[2], stride=2, dropout_rate=dropout_rate)
         
         # 全局平均池化和分类器
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.dropout = nn.Dropout(dropout_rate) if dropout_rate > 0 else nn.Identity()
         self.fc = nn.Linear(64, num_classes)
     
-    def _make_layer(self, out_channels, num_blocks, stride):
+    def _make_layer(self, out_channels, num_blocks, stride, dropout_rate=0.0):
         strides = [stride] + [1] * (num_blocks - 1)
         layers = []
         for stride in strides:
-            layers.append(ResidualBlock(self.in_channels, out_channels, stride))
+            layers.append(ResidualBlock(self.in_channels, out_channels, stride, dropout_rate))
             self.in_channels = out_channels
         return nn.Sequential(*layers)
     
@@ -162,6 +165,7 @@ class ResNet(nn.Module):
         x = self.layer3(x)
         x = self.avg_pool(x)
         x = x.view(x.size(0), -1)
+        x = self.dropout(x)
         x = self.fc(x)
         return x
 
@@ -182,7 +186,7 @@ def get_cnn_model(model_type='CNN', num_filters=32, num_layers=3, dropout_rate=0
         return SimpleCNN(num_filters=num_filters, num_layers=num_layers, dropout_rate=dropout_rate, use_bn=use_bn, num_classes=kwargs.get('num_classes', 10))
     elif model_type == 'resnet':
         num_blocks = kwargs.get('num_blocks', [2, 2, 2])
-        return ResNet(num_blocks, kwargs.get('num_classes', 10))
+        return ResNet(num_blocks, kwargs.get('num_classes', 10), dropout_rate=dropout_rate)
     elif model_type == 'mlp':
         hidden_sizes = kwargs.get('hidden_sizes', [128, 64])
         dropout_rate = kwargs.get('dropout_rate', 0.5)

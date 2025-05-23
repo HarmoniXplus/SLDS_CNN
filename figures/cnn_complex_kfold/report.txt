@@ -1,0 +1,8 @@
+===== K折交叉验证评估报告 =====
+
+Fold 1: Val Acc = 0.9903, Test Acc = 0.9919
+Fold 2: Val Acc = 0.9899, Test Acc = 0.9919
+Fold 3: Val Acc = 0.9889, Test Acc = 0.9907
+
+Val Acc Mean = 0.9897, Std = 0.0006
+Test Acc Mean = 0.9915, Std = 0.0006
