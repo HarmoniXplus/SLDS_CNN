@@ -1,0 +1,8 @@
+===== DDR数据集K折交叉验证评估报告 =====
+
+Fold 1: Val Acc = 0.5867, Test Acc = 0.5403
+Fold 2: Val Acc = 0.5737, Test Acc = 0.5240
+Fold 3: Val Acc = 0.5645, Test Acc = 0.5218
+
+Val Acc Mean = 0.5750, Std = 0.0091
+Test Acc Mean = 0.5287, Std = 0.0083
