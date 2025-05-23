@@ -71,7 +71,9 @@ def plot_confusion_matrix(cm, class_names):
         class_names: 类别名称列表
     """
     plt.figure(figsize=(10, 8))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+
+    fmt = 'd' if np.all(np.equal(np.mod(cm, 1), 0)) else '.2f'
+    sns.heatmap(cm, annot=True, fmt=fmt, cmap='Blues',
                 xticklabels=class_names,
                 yticklabels=class_names)
     plt.xlabel('预测标签')

@@ -6,8 +6,11 @@ from torch.optim.lr_scheduler import StepLR
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, Subset
 from sklearn.model_selection import KFold
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, classification_report
 import matplotlib.pyplot as plt
+import pickle
+import json
+from datetime import datetime
 
 from config import BATCH_SIZE, NUM_WORKERS, FIGURE_PATH, SAVE_PATH, CLASS_NAMES
 from models.cnn_model import get_cnn_model
@@ -119,9 +122,24 @@ def main():
         test_loss, test_acc, all_preds, all_labels, test_losses, test_accs = trainer.test(test_loader)
         all_test_acc.append(test_acc)
         print(f"Fold {fold+1} Test Accuracy: {test_acc:.4f}")
-        # 混淆矩阵
+        # 混淆矩阵和分类报告
         cm = confusion_matrix(all_labels, all_preds)
         all_conf_matrices.append(cm)
+        
+        # 打印分类报告
+        print("\n分类报告:")
+        report = classification_report(all_labels, all_preds)
+        print(report)
+        
+        # 保存混淆矩阵和分类报告到文件
+        report_path = os.path.join(RESULTS_DIR, f'kfold_{NUM_FOLDS}_fold_{fold}_report.txt')
+        with open(report_path, 'w', encoding='utf-8') as f:
+            f.write(f"Fold {fold+1} 混淆矩阵:\n")
+            f.write(str(cm))
+            f.write("\n\n分类报告:\n")
+            f.write(report)
+        
+        # 可视化混淆矩阵
         plot_confusion_matrix(cm, CLASS_NAMES)
         plt_path = os.path.join(RESULTS_DIR, f'kfold_{NUM_FOLDS}_fold_{fold}_confusion_matrix.png')
         plt.savefig(plt_path)
