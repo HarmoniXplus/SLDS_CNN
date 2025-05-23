@@ -58,7 +58,7 @@ class Trainer:
             mode='min',
             factor=0.1,
             patience=5,
-            verbose=True
+            # verbose=True
         )
         # self.scheduler = StepLR(self.optimizer, step_size=30, gamma=0.1)
         #可使用StepLR学习率调度器
